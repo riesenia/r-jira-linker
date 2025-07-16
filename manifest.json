@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "JIRA Issue Linker",
+  "version": "1.2",
+  "description": "Converts JIRA project keys on web pages to clickable links with hover tooltips",
+  "permissions": ["activeTab", "storage"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "JIRA Issue Linker"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

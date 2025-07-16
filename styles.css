@@ -1,0 +1,57 @@
+.jira-link {
+  position: relative;
+  display: inline-block;
+}
+
+.jira-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #bd006d;
+  border-radius: 4px;
+  display: none;
+  align-items: stretch;
+  justify-content: stretch;
+  z-index: 1000;
+  backdrop-filter: blur(1px);
+}
+
+.jira-link:hover .jira-overlay {
+  display: flex;
+}
+
+.overlay-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  background-color: transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  position: relative;
+  opacity: 0.8;
+}
+
+.overlay-action:hover {
+  opacity: 1;
+}
+
+.overlay-action:first-child::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 1px;
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.overlay-action svg {
+  fill: white;
+  width: 14px;
+  height: 14px;
+  display: block;
+}
