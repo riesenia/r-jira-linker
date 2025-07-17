@@ -1,32 +1,77 @@
-const JIRA_BASE_URL = 'https://riesenia.atlassian.net/browse/';
 const JIRA_KEY_REGEX = /\b([A-Z]{2,10}-\d+)\b/g;
 
 let extensionEnabled = true;
 let showLinkButton = true;
 let showCopyButton = true;
+let jiraBaseUrl = '';
 let jiraKeysOnPage = new Set();
 
-chrome.storage.sync.get(['extensionEnabled', 'showLinkButton', 'showCopyButton'], function(result) {
+let isOnSkippedDomain = false;
+
+chrome.storage.sync.get(['extensionEnabled', 'showLinkButton', 'showCopyButton', 'jiraBaseUrl'], function(result) {
   extensionEnabled = result.extensionEnabled !== false;
   showLinkButton = result.showLinkButton !== false;
   showCopyButton = result.showCopyButton !== false;
+  jiraBaseUrl = result.jiraBaseUrl || '';
+  
+  // Always skip processing if we're on the configured JIRA hostname
+  if (jiraBaseUrl) {
+    try {
+      let hostname;
+      if (jiraBaseUrl.startsWith('http://') || jiraBaseUrl.startsWith('https://')) {
+        hostname = new URL(jiraBaseUrl).hostname;
+      } else {
+        hostname = jiraBaseUrl;
+      }
+      
+      if (window.location.hostname === hostname) {
+        isOnSkippedDomain = true;
+        return;
+      }
+    } catch (e) {
+      // Invalid URL, continue processing
+    }
+  }
+  
+  initializeExtension();
 });
 
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'toggleExtension') {
     extensionEnabled = request.enabled;
     if (extensionEnabled) {
+      // Always skip processing if we're on the configured JIRA hostname
+      if (jiraBaseUrl) {
+        try {
+          const jiraUrl = new URL(jiraBaseUrl);
+          if (window.location.hostname === jiraUrl.hostname) {
+            return;
+          }
+        } catch (e) {
+          // Invalid URL, continue processing
+        }
+      }
       init();
     } else {
       removeAllJiraLinks();
     }
   } else if (request.action === 'updateOptions') {
-    chrome.storage.sync.get(['showLinkButton', 'showCopyButton'], function(result) {
+    chrome.storage.sync.get(['showLinkButton', 'showCopyButton', 'jiraBaseUrl'], function(result) {
       showLinkButton = result.showLinkButton !== false;
       showCopyButton = result.showCopyButton !== false;
+      jiraBaseUrl = result.jiraBaseUrl || '';
       updateAllOverlays();
     });
   } else if (request.action === 'getStatistics') {
+    if (isOnSkippedDomain) {
+      sendResponse({
+        isSkipped: true,
+        totalKeys: 0,
+        projects: []
+      });
+      return;
+    }
+    
     const projects = Array.from(jiraKeysOnPage).map(key => key.split('-')[0]);
     const uniqueProjects = [...new Set(projects)];
     
@@ -43,7 +88,7 @@ function createOverlay(jiraKey) {
   
   let actions = '';
   
-  if (showLinkButton) {
+  if (showLinkButton && jiraBaseUrl) {
     actions += `
       <div class="overlay-action" data-action="open" data-key="${jiraKey}" title="Open in JIRA">
         <svg viewBox="0 0 24 24" width="16" height="16">
@@ -98,8 +143,13 @@ function updateAllOverlays() {
       const actionType = action.dataset.action;
       const key = action.dataset.key;
       
-      if (actionType === 'open') {
-        window.open(`${JIRA_BASE_URL}${key}`, '_blank');
+      if (actionType === 'open' && jiraBaseUrl) {
+        let baseUrl = jiraBaseUrl;
+        if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+          baseUrl = `https://${baseUrl}`;
+        }
+        const fullUrl = baseUrl.endsWith('/') ? `${baseUrl}browse/${key}` : `${baseUrl}/browse/${key}`;
+        window.open(fullUrl, '_blank');
       } else if (actionType === 'copy') {
         navigator.clipboard.writeText(key).then(() => {
           const svg = action.querySelector('svg');
@@ -155,8 +205,13 @@ function wrapJiraKey(textNode) {
       const actionType = action.dataset.action;
       const key = action.dataset.key;
       
-      if (actionType === 'open') {
-        window.open(`${JIRA_BASE_URL}${key}`, '_blank');
+      if (actionType === 'open' && jiraBaseUrl) {
+        let baseUrl = jiraBaseUrl;
+        if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+          baseUrl = `https://${baseUrl}`;
+        }
+        const fullUrl = baseUrl.endsWith('/') ? `${baseUrl}browse/${key}` : `${baseUrl}/browse/${key}`;
+        window.open(fullUrl, '_blank');
       } else if (actionType === 'copy') {
         navigator.clipboard.writeText(key).then(() => {
           const svg = action.querySelector('svg');
@@ -195,10 +250,40 @@ function processTextNodes(element) {
 function init() {
   if (!extensionEnabled) return;
   
+  // Always skip processing if we're on the configured JIRA hostname
+  if (jiraBaseUrl) {
+    try {
+      let hostname;
+      if (jiraBaseUrl.startsWith('http://') || jiraBaseUrl.startsWith('https://')) {
+        hostname = new URL(jiraBaseUrl).hostname;
+      } else {
+        hostname = jiraBaseUrl;
+      }
+      
+      if (window.location.hostname === hostname) {
+        return;
+      }
+    } catch (e) {
+      // Invalid URL, continue processing
+    }
+  }
+  
   processTextNodes(document.body);
   
   const observer = new MutationObserver(mutations => {
     if (!extensionEnabled) return;
+    
+    // Always skip processing if we're on the configured JIRA hostname
+    if (jiraBaseUrl) {
+      try {
+        const jiraUrl = new URL(jiraBaseUrl);
+        if (window.location.hostname === jiraUrl.hostname) {
+          return;
+        }
+      } catch (e) {
+        // Invalid URL, continue processing
+      }
+    }
     
     mutations.forEach(mutation => {
       mutation.addedNodes.forEach(node => {
@@ -215,8 +300,12 @@ function init() {
   });
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
+function initializeExtension() {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 }
+
+// This is now handled by the early exit logic and initializeExtension function

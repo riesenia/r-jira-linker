@@ -4,15 +4,17 @@ document.addEventListener('DOMContentLoaded', function() {
   const optionsSection = document.getElementById('optionsSection');
   const showLinkToggle = document.getElementById('showLinkToggle');
   const showCopyToggle = document.getElementById('showCopyToggle');
+  const jiraBaseUrl = document.getElementById('jiraBaseUrl');
   const statistics = document.getElementById('statistics');
   
   // Load current state
-  chrome.storage.sync.get(['extensionEnabled', 'showLinkButton', 'showCopyButton'], function(result) {
+  chrome.storage.sync.get(['extensionEnabled', 'showLinkButton', 'showCopyButton', 'jiraBaseUrl'], function(result) {
     const isEnabled = result.extensionEnabled !== false;
     const showLink = result.showLinkButton !== false;
     const showCopy = result.showCopyButton !== false;
+    const baseUrl = result.jiraBaseUrl || '';
     
-    updateUI(isEnabled, showLink, showCopy);
+    updateUI(isEnabled, showLink, showCopy, baseUrl);
     loadStatistics();
   });
   
@@ -68,10 +70,19 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
   
-  function updateUI(enabled, showLink, showCopy) {
+  // Handle JIRA base URL input changes
+  jiraBaseUrl.addEventListener('input', function() {
+    const baseUrl = jiraBaseUrl.value.trim();
+    chrome.storage.sync.set({jiraBaseUrl: baseUrl}, function() {
+      notifyOptionsChange();
+    });
+  });
+  
+  function updateUI(enabled, showLink, showCopy, baseUrl) {
     updateMainToggle(enabled);
     updateToggle(showLinkToggle, showLink);
     updateToggle(showCopyToggle, showCopy);
+    jiraBaseUrl.value = baseUrl;
   }
   
   function updateMainToggle(enabled) {
@@ -93,6 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
       toggle.classList.remove('enabled');
     }
   }
+  
   
   function notifyOptionsChange() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
@@ -120,7 +132,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
           }
           if (response) {
-            updateStatistics(response);
+            if (response.isSkipped) {
+              statistics.textContent = 'Processing skipped on JIRA domain';
+            } else {
+              updateStatistics(response);
+            }
           } else {
             statistics.textContent = 'No JIRA keys found on this page';
           }
