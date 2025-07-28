@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JIRA Issue Linker",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Automatically converts JIRA issue keys on web pages into interactive links with hover overlays. Configurable disabled domains and customizable settings.",
   "permissions": ["activeTab", "storage", "tabs"],
   "action": {

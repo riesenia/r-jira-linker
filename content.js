@@ -273,11 +273,38 @@ function processTextNodes(element) {
   if (element.nodeType === Node.TEXT_NODE) {
     wrapJiraKey(element);
   } else if (element.nodeType === Node.ELEMENT_NODE) {
+    // Skip script and style tags
     if (element.tagName === 'SCRIPT' || element.tagName === 'STYLE') return;
+    
+    // Skip editable content to prevent issues when users edit
+    if (isEditableElement(element)) return;
     
     const children = Array.from(element.childNodes);
     children.forEach(child => processTextNodes(child));
   }
+}
+
+function isEditableElement(element) {
+  // Check if element is editable
+  if (element.isContentEditable) return true;
+  if (element.contentEditable === 'true') return true;
+  
+  // Check for input fields and textareas
+  const editableTags = ['INPUT', 'TEXTAREA', 'SELECT'];
+  if (editableTags.includes(element.tagName)) return true;
+  
+  // Check for elements with contenteditable attribute
+  if (element.hasAttribute('contenteditable')) return true;
+  
+  // Check if parent is editable (for nested content)
+  let parent = element.parentElement;
+  while (parent) {
+    if (parent.isContentEditable || parent.contentEditable === 'true') return true;
+    if (parent.hasAttribute('contenteditable') && parent.getAttribute('contenteditable') !== 'false') return true;
+    parent = parent.parentElement;
+  }
+  
+  return false;
 }
 
 function init() {
