@@ -14,7 +14,12 @@ chrome.storage.sync.get(['extensionEnabled', 'showLinkButton', 'showCopyButton',
   showCopyButton = result.showCopyButton !== false;
   jiraBaseUrl = result.jiraBaseUrl || '';
   
-  // Always skip processing if we're on the configured JIRA hostname
+  // Always skip processing if we're on the configured JIRA hostname or Bitbucket
+  if (window.location.hostname === 'bitbucket.org') {
+    isOnSkippedDomain = true;
+    return;
+  }
+  
   if (jiraBaseUrl) {
     try {
       let hostname;
@@ -40,7 +45,11 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'toggleExtension') {
     extensionEnabled = request.enabled;
     if (extensionEnabled) {
-      // Always skip processing if we're on the configured JIRA hostname
+      // Always skip processing if we're on the configured JIRA hostname or Bitbucket
+      if (window.location.hostname === 'bitbucket.org') {
+        return;
+      }
+      
       if (jiraBaseUrl) {
         try {
           const jiraUrl = new URL(jiraBaseUrl);
@@ -250,7 +259,11 @@ function processTextNodes(element) {
 function init() {
   if (!extensionEnabled) return;
   
-  // Always skip processing if we're on the configured JIRA hostname
+  // Always skip processing if we're on the configured JIRA hostname or Bitbucket
+  if (window.location.hostname === 'bitbucket.org') {
+    return;
+  }
+  
   if (jiraBaseUrl) {
     try {
       let hostname;
@@ -273,7 +286,11 @@ function init() {
   const observer = new MutationObserver(mutations => {
     if (!extensionEnabled) return;
     
-    // Always skip processing if we're on the configured JIRA hostname
+    // Always skip processing if we're on the configured JIRA hostname or Bitbucket
+    if (window.location.hostname === 'bitbucket.org') {
+      return;
+    }
+    
     if (jiraBaseUrl) {
       try {
         const jiraUrl = new URL(jiraBaseUrl);

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JIRA Issue Linker",
-  "version": "1.2",
+  "version": "0.2.6",
   "description": "Converts JIRA project keys on web pages to clickable links with hover tooltips",
   "permissions": ["activeTab", "storage"],
   "action": {
