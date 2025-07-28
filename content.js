@@ -5,70 +5,94 @@ let showLinkButton = true;
 let showCopyButton = true;
 let jiraBaseUrl = '';
 let jiraKeysOnPage = new Set();
+let disabledUrls = [];
+let builtinDisabled = {};
 
 let isOnSkippedDomain = false;
 
-chrome.storage.sync.get(['extensionEnabled', 'showLinkButton', 'showCopyButton', 'jiraBaseUrl'], function(result) {
+chrome.storage.sync.get(['extensionEnabled', 'showLinkButton', 'showCopyButton', 'jiraBaseUrl', 'disabledUrls', 'builtinDisabled'], function(result) {
   extensionEnabled = result.extensionEnabled !== false;
   showLinkButton = result.showLinkButton !== false;
   showCopyButton = result.showCopyButton !== false;
   jiraBaseUrl = result.jiraBaseUrl || '';
+  disabledUrls = result.disabledUrls || [];
+  builtinDisabled = result.builtinDisabled || {};
   
-  // Always skip processing if we're on the configured JIRA hostname or Bitbucket
-  if (window.location.hostname === 'bitbucket.org') {
+  // Check if current hostname is in disabled URLs
+  if (isHostnameDisabled(window.location.hostname)) {
     isOnSkippedDomain = true;
     return;
-  }
-  
-  if (jiraBaseUrl) {
-    try {
-      let hostname;
-      if (jiraBaseUrl.startsWith('http://') || jiraBaseUrl.startsWith('https://')) {
-        hostname = new URL(jiraBaseUrl).hostname;
-      } else {
-        hostname = jiraBaseUrl;
-      }
-      
-      if (window.location.hostname === hostname) {
-        isOnSkippedDomain = true;
-        return;
-      }
-    } catch (e) {
-      // Invalid URL, continue processing
-    }
   }
   
   initializeExtension();
 });
 
+function isHostnameDisabled(hostname) {
+  // Check built-in disabled URLs first
+  for (const [builtinUrl, isDisabled] of Object.entries(builtinDisabled)) {
+    if (isDisabled && isHostnameMatch(hostname, builtinUrl)) {
+      return true;
+    }
+  }
+  
+  // Check custom disabled URLs
+  return disabledUrls.some(disabledUrl => {
+    return isHostnameMatch(hostname, disabledUrl);
+  });
+}
+
+function isHostnameMatch(hostname, targetUrl) {
+  // Exact match
+  if (hostname === targetUrl) {
+    return true;
+  }
+  
+  // Wildcard subdomain match (*.example.com matches sub.example.com)
+  if (targetUrl.startsWith('*.')) {
+    const domain = targetUrl.substring(2);
+    return hostname.endsWith('.' + domain) || hostname === domain;
+  }
+  
+  // Handle subdomain matching: google.com should match www.google.com
+  if (hostname.endsWith('.' + targetUrl)) {
+    return true;
+  }
+  
+  // Handle reverse case: www.google.com should match google.com if hostname starts with www.
+  if (targetUrl.startsWith('www.') && hostname === targetUrl.substring(4)) {
+    return true;
+  }
+  
+  return false;
+}
+
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'toggleExtension') {
     extensionEnabled = request.enabled;
     if (extensionEnabled) {
-      // Always skip processing if we're on the configured JIRA hostname or Bitbucket
-      if (window.location.hostname === 'bitbucket.org') {
+      // Skip processing if we're on a disabled domain
+      if (isHostnameDisabled(window.location.hostname)) {
         return;
-      }
-      
-      if (jiraBaseUrl) {
-        try {
-          const jiraUrl = new URL(jiraBaseUrl);
-          if (window.location.hostname === jiraUrl.hostname) {
-            return;
-          }
-        } catch (e) {
-          // Invalid URL, continue processing
-        }
       }
       init();
     } else {
       removeAllJiraLinks();
     }
   } else if (request.action === 'updateOptions') {
-    chrome.storage.sync.get(['showLinkButton', 'showCopyButton', 'jiraBaseUrl'], function(result) {
+    chrome.storage.sync.get(['showLinkButton', 'showCopyButton', 'jiraBaseUrl', 'disabledUrls', 'builtinDisabled'], function(result) {
       showLinkButton = result.showLinkButton !== false;
       showCopyButton = result.showCopyButton !== false;
       jiraBaseUrl = result.jiraBaseUrl || '';
+      disabledUrls = result.disabledUrls || [];
+      builtinDisabled = result.builtinDisabled || {};
+      
+      // Check if current domain should now be disabled
+      if (isHostnameDisabled(window.location.hostname)) {
+        isOnSkippedDomain = true;
+        removeAllJiraLinks();
+        return;
+      }
+      
       updateAllOverlays();
     });
   } else if (request.action === 'getStatistics') {
@@ -259,26 +283,9 @@ function processTextNodes(element) {
 function init() {
   if (!extensionEnabled) return;
   
-  // Always skip processing if we're on the configured JIRA hostname or Bitbucket
-  if (window.location.hostname === 'bitbucket.org') {
+  // Skip processing if we're on a disabled domain
+  if (isHostnameDisabled(window.location.hostname)) {
     return;
-  }
-  
-  if (jiraBaseUrl) {
-    try {
-      let hostname;
-      if (jiraBaseUrl.startsWith('http://') || jiraBaseUrl.startsWith('https://')) {
-        hostname = new URL(jiraBaseUrl).hostname;
-      } else {
-        hostname = jiraBaseUrl;
-      }
-      
-      if (window.location.hostname === hostname) {
-        return;
-      }
-    } catch (e) {
-      // Invalid URL, continue processing
-    }
   }
   
   processTextNodes(document.body);
@@ -286,20 +293,9 @@ function init() {
   const observer = new MutationObserver(mutations => {
     if (!extensionEnabled) return;
     
-    // Always skip processing if we're on the configured JIRA hostname or Bitbucket
-    if (window.location.hostname === 'bitbucket.org') {
+    // Skip processing if we're on a disabled domain
+    if (isHostnameDisabled(window.location.hostname)) {
       return;
-    }
-    
-    if (jiraBaseUrl) {
-      try {
-        const jiraUrl = new URL(jiraBaseUrl);
-        if (window.location.hostname === jiraUrl.hostname) {
-          return;
-        }
-      } catch (e) {
-        // Invalid URL, continue processing
-      }
     }
     
     mutations.forEach(mutation => {

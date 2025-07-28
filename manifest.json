@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "JIRA Issue Linker",
-  "version": "0.2.6",
-  "description": "Converts JIRA project keys on web pages to clickable links with hover tooltips",
-  "permissions": ["activeTab", "storage"],
+  "version": "0.3.0",
+  "description": "Automatically converts JIRA issue keys on web pages into interactive links with hover overlays. Configurable disabled domains and customizable settings.",
+  "permissions": ["activeTab", "storage", "tabs"],
   "action": {
     "default_popup": "popup.html",
     "default_title": "JIRA Issue Linker"
   },
+  "options_page": "settings.html",
   "content_scripts": [
     {
       "matches": ["<all_urls>"],

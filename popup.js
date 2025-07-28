@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const showCopyToggle = document.getElementById('showCopyToggle');
   const jiraBaseUrl = document.getElementById('jiraBaseUrl');
   const statistics = document.getElementById('statistics');
+  const settingsBtn = document.getElementById('settingsBtn');
   
   // Load current state
   chrome.storage.sync.get(['extensionEnabled', 'showLinkButton', 'showCopyButton', 'jiraBaseUrl'], function(result) {
@@ -76,6 +77,11 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.storage.sync.set({jiraBaseUrl: baseUrl}, function() {
       notifyOptionsChange();
     });
+  });
+  
+  // Handle settings button click
+  settingsBtn.addEventListener('click', function() {
+    chrome.runtime.openOptionsPage();
   });
   
   function updateUI(enabled, showLink, showCopy, baseUrl) {
