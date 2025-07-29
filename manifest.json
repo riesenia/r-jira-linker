@@ -3,7 +3,7 @@
   "name": "JIRA Issue Linker",
   "version": "0.3.1",
   "description": "Converts JIRA issue keys into interactive links with hover overlays. Configurable disabled domains and settings.",
-  "permissions": ["activeTab", "storage", "tabs"],
+  "permissions": ["activeTab", "storage"],
   "action": {
     "default_popup": "popup.html",
     "default_title": "JIRA Issue Linker"
